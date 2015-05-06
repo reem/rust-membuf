@@ -81,16 +81,26 @@ impl<T> MemBuf<T> {
     ///
     /// Unlike `std::rt::heap::reallocate`, cap == 0 is allowed.
     ///
+    /// ## Safety
+    ///
+    /// `reallocate` will invalidate the buffer in all other `MemBuf`s which
+    /// share the same underlying buffer as this one. As a result, it is possible
+    /// to cause a double-free by cloning or copying a `MemBuf` and calling
+    /// `reallocate` from both handles.
+    ///
+    /// `UniqueBuf` has a safe `reallocate` implementation, since it cannot be
+    /// copied or cloned into multiple handles.
+    ///
     /// ```
     /// # use membuf::MemBuf;
     ///
     /// let mut buffer: MemBuf<usize> = MemBuf::allocate(128);
     /// assert_eq!(buffer.capacity(), 128);
     ///
-    /// buffer.reallocate(1024);
+    /// unsafe { buffer.reallocate(1024); }
     /// assert_eq!(buffer.capacity(), 1024);
     /// ```
-    pub fn reallocate(&mut self, cap: usize) {
+    pub unsafe fn reallocate(&mut self, cap: usize) {
         if self.cap == 0 || cap == 0 {
             // Safe to drop the old buffer because either it never
             // allocated or we're getting rid of the allocation.
@@ -102,10 +112,9 @@ impl<T> MemBuf<T> {
             let old_cap = mem::replace(&mut self.cap, 0);
             let buffer = mem::replace(&mut self.buffer, alloc::empty());
 
-            self.buffer = unsafe {
-                alloc::reallocate(buffer, NonZero::new(old_cap),
-                           NonZero::new(cap))
-            };
+            self.buffer = alloc::reallocate(buffer,
+                                            NonZero::new(old_cap),
+                                            NonZero::new(cap));
             self.cap = cap;
         }
     }
@@ -126,6 +135,17 @@ impl<T> MemBuf<T> {
     ///
     /// The MemBuf will *only* deallocate the contained memory. It will
     /// *not* run any destructors on data in that memory.
+    ///
+    /// ## Safety
+    ///
+    /// `deallocate` will invalidate the buffer in all other `MemBuf`s which
+    /// share the same underlying buffer as this one. As a result, it is possible
+    /// to cause a double-free by cloning or copying a `MemBuf` and calling
+    /// `deallocate` from both handles.
+    ///
+    /// `UniqueBuf` has a safe `deallocate` implementation as part of its `Drop`
+    /// implementation, but cannot be copied or cloned into multiple handles.
+    ///
     pub unsafe fn deallocate(self) {
         if self.cap == 0 { return }
         alloc::deallocate(self.buffer, NonZero::new(self.cap));
@@ -196,7 +216,7 @@ mod test {
         let mut buffer: MemBuf<usize> = MemBuf::allocate(8);
         assert_eq!(buffer.cap, 8);
 
-        buffer.reallocate(16);
+        unsafe { buffer.reallocate(16); }
         assert_eq!(buffer.cap, 16);
 
         unsafe {
@@ -210,7 +230,7 @@ mod test {
         // Allocate so in-place fails.
         let _: MemBuf<usize> = MemBuf::allocate(128);
 
-        buffer.reallocate(32);
+        unsafe { buffer.reallocate(32); }
 
         unsafe {
             // Ensure the data is still there.
@@ -231,14 +251,14 @@ mod test {
     #[should_panic = "Capacity overflow."]
     fn test_fresh_reallocate_capacity_overflow() {
         let mut buffer: MemBuf<usize> = MemBuf::new();
-        buffer.reallocate(10_000_000_000_000_000_000);
+        unsafe { buffer.reallocate(10_000_000_000_000_000_000); }
     }
 
     #[test]
     #[should_panic = "Capacity overflow."]
     fn test_reallocate_capacity_overflow() {
         let mut buffer: MemBuf<usize> = MemBuf::allocate(128);
-        buffer.reallocate(10_000_000_000_000_000_000);
+        unsafe { buffer.reallocate(10_000_000_000_000_000_000); }
     }
 }
 

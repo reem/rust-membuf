@@ -64,7 +64,7 @@ impl<T> UniqueBuf<T> {
     /// assert_eq!(buffer.capacity(), 1024);
     /// ```
     pub fn reallocate(&mut self, cap: usize) {
-        self.inner.reallocate(cap)
+        unsafe { self.inner.reallocate(cap) }
     }
 
     /// Get the current capacity of the UniqueBuf.
