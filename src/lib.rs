@@ -16,7 +16,7 @@ use core::nonzero::NonZero;
 use std::ops::Deref;
 use std::mem;
 
-mod alloc;
+pub mod alloc;
 mod unique;
 
 /// A safe wrapper around a heap allocated buffer of Ts, tracking capacity only.

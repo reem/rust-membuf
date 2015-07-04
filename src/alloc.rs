@@ -9,6 +9,7 @@ use core::nonzero::NonZero;
 use std::rt::heap;
 use std::mem;
 
+/// Allocate a new pointer to the heap with space for `cap` `T`s.
 pub unsafe fn allocate<T>(cap: NonZero<usize>) -> NonZero<*mut T> {
     if mem::size_of::<T>() == 0 { return empty() }
 
@@ -21,9 +22,11 @@ pub unsafe fn allocate<T>(cap: NonZero<usize>) -> NonZero<*mut T> {
     NonZero::new(ptr as *mut T)
 }
 
+/// Reallocate an allocation allocated with `allocate` or a previous call to
+/// `reallocate` to be a larger or smaller size.
 pub unsafe fn reallocate<T>(ptr: NonZero<*mut T>,
-                        old_cap: NonZero<usize>,
-                        new_cap: NonZero<usize>) -> NonZero<*mut T> {
+                            old_cap: NonZero<usize>,
+                            new_cap: NonZero<usize>) -> NonZero<*mut T> {
     if mem::size_of::<T>() == 0 { return empty() }
 
     let old_size = unchecked_allocation_size::<T>(old_cap);
@@ -40,10 +43,12 @@ pub unsafe fn reallocate<T>(ptr: NonZero<*mut T>,
     NonZero::new(new as *mut T)
 }
 
+/// A zero-sized allocation, appropriate for use with zero sized types.
 pub fn empty<T>() -> NonZero<*mut T> {
     unsafe { NonZero::new(heap::EMPTY as *mut T) }
 }
 
+/// Deallocate an allocation allocated with `allocate` or `reallocate`.
 pub unsafe fn deallocate<T>(ptr: NonZero<*mut T>, cap: NonZero<usize>) {
     if mem::size_of::<T>() == 0 { return }
 
