@@ -1,4 +1,4 @@
-#![feature(core, alloc)]
+#![feature(core, nonzero, alloc, oom, heap_api)]
 #![cfg_attr(test, deny(warnings))]
 #![deny(missing_docs)]
 #![allow(raw_pointer_derive)]
