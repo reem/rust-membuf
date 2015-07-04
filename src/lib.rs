@@ -102,9 +102,7 @@ impl<T> MemBuf<T> {
     /// ```
     pub unsafe fn reallocate(&mut self, cap: usize) {
         if self.cap == 0 || cap == 0 {
-            // Safe to drop the old buffer because either it never
-            // allocated or we're getting rid of the allocation.
-            *self = MemBuf::allocate(cap)
+            mem::replace(self, MemBuf::allocate(cap)).deallocate();
         } else {
             // We need to set the capacity to 0 because if the capacity
             // overflows unwinding is triggered, which if we don't
